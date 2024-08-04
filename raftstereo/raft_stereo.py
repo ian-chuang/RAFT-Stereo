@@ -158,24 +158,23 @@ class RAFTConfig:
     mixed_precision: bool = False
     n_gru_layers: int = 3
 
-def create_raft():
-        args = RAFTConfig()
-        model = torch.nn.DataParallel(RAFTStereo(args), device_ids=[0])
-        model.load_state_dict(torch.load(args.restore_ckpt))
+def create_raft(args):
+    model = torch.nn.DataParallel(RAFTStereo(args), device_ids=[0])
+    model.load_state_dict(torch.load(args.restore_ckpt))
 
-        model = model.module
-        model = model.to('cuda')
-        model = model.eval()
-        return model
+    model = model.module
+    model = model.to('cuda')
+    model = model.eval()
+    return model
 
-@torch.no_grad
 def raft_inference(left: torch.Tensor, right:torch.Tensor, model, iters = 32):
-    assert left.shape == right.shape
-    assert left.shape[0] == 3
-    from raftstereo.utils.utils import InputPadder
-    padder = InputPadder(left.shape, divis_by=32)
-    left, right = padder.pad(left[None,...], right[None,...])
+    with torch.no_grad():
+        assert left.shape == right.shape
+        assert left.shape[0] == 3
+        from raftstereo.utils.utils import InputPadder
+        padder = InputPadder(left.shape, divis_by=32)
+        left, right = padder.pad(left[None,...], right[None,...])
 
-    _, flow_up = model(left, right, iters=iters, test_mode=True)
-    flow_up = padder.unpad(flow_up).squeeze()
+        _, flow_up = model(left, right, iters=iters, test_mode=True)
+        flow_up = padder.unpad(flow_up).squeeze()
     return flow_up
